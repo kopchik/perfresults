@@ -1,22 +1,10 @@
 #!/usr/bin/env python3
 
-from useful.small import dictzip
-from useful.mstring import s2 as s, prints
-from collections import defaultdict, OrderedDict
+from useful.small import OrderedDefaultDict
+from useful.mstring import prints
+from useful.mystruct import Struct
+from collections import OrderedDict
 from scipy.stats.stats import pearsonr
-
-
-import collections
-
-class OrderedDefaultDict(OrderedDict):
-  """ Ordered default dict. """
-  def __init__(self, factory, *args, **kwargs):
-    self.default_factory = factory
-    super(OrderedDefaultDict, self).__init__(*args, **kwargs)
-
-  def __missing__ (self, key):
-    self[key] = default = self.default_factory()
-    return default
 
 
 def ratio(sh, iso, param):
@@ -151,16 +139,34 @@ results = {
 }
 
 
+def print_sens_brut(ret):
+  sensitivity = ret.sensitivity
+  brutality = ret.brutality
+
+  prints("\nBMARK       sensitivity    brutality")
+  for bmark,degr in sorted(sensitivity.items(), key=lambda x: x[1], reverse=True):
+    brut = brutality[bmark]
+    prints("{bmark:<11} {degr:>8.2f} {brut:>10.2f}")
+
+
+def print_correlation(ret):
+    for event, (corr, p) in ret.correlation:
+    if p > 0.05:
+      continue
+    prints("{event:<25} {corr:>8.4f} {p:>8.4f}")
 
 
 def analyze(isolated, joint, stats=None):
   bmarks = sorted(isolated.keys())
-  avg_sensitivity = OrderedDefaultDict(int)
-  avg_brutality = OrderedDefaultDict(int)
+  sensitivity = OrderedDefaultDict(int)
+  brutality = OrderedDefaultDict(int)
+  ret = Struct()
 
+  print
   print("          ", end='')
   [prints("{bmark:>10}", end='') for bmark in bmarks]
   print()
+
   for fg in bmarks:
     prints("{fg:<10}", end='')
     for bg in bmarks:
@@ -171,47 +177,35 @@ def analyze(isolated, joint, stats=None):
 
       fg_degr = 1 - fg_perf / isolated[fg]
       bg_degr = 1 - bg_perf / isolated[bg]
-      avg_sensitivity[fg] += fg_degr
-      avg_sensitivity[bg] += bg_degr
+      sensitivity[fg] += fg_degr
+      sensitivity[bg] += bg_degr
 
-      avg_brutality[fg] += bg_degr
-      avg_brutality[bg] += fg_degr
+      brutality[fg] += bg_degr
+      brutality[bg] += fg_degr
 
       prints("{fg_degr:>10.2%}", end='')
     print()
 
-
-  for k,v in avg_sensitivity.items():
-    avg_sensitivity[k] = v / len(bmarks)
-
-  for k,v in avg_brutality.items():
-    avg_brutality[k] = v / len(bmarks)
-
-  prints("\nBMARK       sensitivity    brutality")
-  for bmark,degr in sorted(avg_sensitivity.items(), key=lambda x: x[1], reverse=True):
-    brut = avg_brutality[bmark]
-    prints("{bmark:<11} {degr:>8.2f} {brut:>10.2f}")
-
-  if not stats:
-    return
+  for k,v in sensitivity.items():
+    sensitivity[k] = v / len(bmarks)
+  for k,v in brutality.items():
+    brutality[k] = v / len(bmarks)
+  ret.sensitivity = sensitivity
+  ret.brutality = brutality
 
   correlation = []
   for event in stats['blosc']:
     X, Y = [], []
     for bmark in bmarks:
-      sensitivity = avg_sensitivity[bmark]
+      sens = sensitivity[bmark]
       count = stats[bmark][event]
-      X.append(sensitivity)
+      X.append(sens)
       Y.append(count)
     correlation.append((event, pearsonr(X, Y)))
   correlation.sort(key=lambda v: -abs(v[1][0]))
-  for event, (corr, p) in correlation:
-    if p > 0.05:
-      continue
-    prints("{event:<25} {corr:>8.4f} {p:>8.4f}")
-  # for k,v in isolated_cnts.items():
-  #   print(k, v, end='\n\n')
-  return  # TODO
+  ret.correlation = correlation
+
+  return ret
 
   for (bmark1, bmark2), (ipc1_sh, ipc2_sh) in joint.items():
     ipc1_iso = isolated[bmark1]
@@ -223,8 +217,8 @@ def analyze(isolated, joint, stats=None):
 
 
 data = results['fx_normale']
-analyze(isolated=data['isolated'],joint=data['joint'], stats=data['isolated_stats'])
+sibling = analyze(isolated=data['isolated'],joint=data['joint'], stats=data['isolated_stats'])
 print("=========")
 # data = results['fx_qnc']
 # interference(isolated=data['isolated'],joint=data['joint'])
-# interference(joint=results['fx_far_and_dirty'], isolated=results['fx_normale']['isolated'], isolated_cnts=data['isolated_cnts'])
+interference(joint=results['fx_far_and_dirty'], isolated=results['fx_normale']['isolated'], stats=data['isolated_stats'])
