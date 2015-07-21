@@ -5,13 +5,19 @@ from useful.mstring import s2 as s, prints
 from collections import defaultdict, OrderedDict
 from scipy.stats.stats import pearsonr
 
-# LLC-load-misses
-# shared = {'blosc': {'instructions': 347917596960, 'cycles': 528928274087, 'LLC-load-misses': 2642998531}, 'sdagp': {'instructions': 156371960992, 'cycles': 554283829332, 'LLC-load-misses': 2395350171}, 'matrix': {'instructions': 449244355460, 'cycles': 537356038430, 'LLC-load-misses': 598865411}, 'ffmpeg': {'instructions': 533455917740, 'cycles': 553316776003, 'LLC-load-misses': 618276206}, 'wordpress': {'instructions': 285614252490, 'cycles': 554173341858, 'LLC-load-misses': 1061129727}, 'static': {'instructions': 298249344786, 'cycles': 551943402131, 'LLC-load-misses': 2192224932}, 'sdag': {'instructions': 388137377469, 'cycles': 553925951826, 'LLC-load-misses': 337430803}, 'pgbench': {'instructions': 112360083343, 'cycles': 477500195749, 'LLC-load-misses': 1918163203}}
-# isolated =  {'blosc': {'instructions': 502987695333, 'cycles': 559021092165, 'LLC-load-misses': 3250005764}, 'sdagp': {'instructions': 218859491409, 'cycles': 558996699654, 'LLC-load-misses': 2439186189}, 'matrix': {'instructions': 742912864027, 'cycles': 558257081606, 'LLC-load-misses': 564436813}, 'ffmpeg': {'instructions': 756800633184, 'cycles': 559405743957, 'LLC-load-misses': 556960635}, 'wordpress': {'instructions': 432053638190, 'cycles': 558508651916, 'LLC-load-misses': 682821002}, 'static': {'instructions': 456635099787, 'cycles': 557977494436, 'LLC-load-misses': 2544825072}, 'sdag': {'instructions': 541723545370, 'cycles': 559647430708, 'LLC-load-misses': 143230611}, 'pgbench': {'instructions': 246779879303, 'cycles': 544413926484, 'LLC-load-misses': 648780592}}
 
+import collections
 
-# shared = {'pgbench': {'L1-dcache-stores': 3027093385, 'stalled-cycles-frontend': 246604162364, 'cycles': 476654622703, 'instructions': 107588011641, 'LLC-stores': 2668070374}, 'sdagp': {'L1-dcache-stores': 9880065035, 'stalled-cycles-frontend': 34398004661, 'cycles': 550899135282, 'instructions': 159893661360, 'LLC-stores': 5340040669}, 'wordpress': {'L1-dcache-stores': 5594046886, 'stalled-cycles-frontend': 133895267516, 'cycles': 550830361701, 'instructions': 284026762028, 'LLC-stores': 1668074474}, 'static': {'L1-dcache-stores': 11009709615, 'stalled-cycles-frontend': 89326002092, 'cycles': 528534459810, 'instructions': 275420563073, 'LLC-stores': 5109400166}, 'matrix': {'L1-dcache-stores': 14133056209, 'stalled-cycles-frontend': 269357280770, 'cycles': 541781635496, 'instructions': 456109558899, 'LLC-stores': 7215588025}, 'ffmpeg': {'L1-dcache-stores': 9313382263, 'stalled-cycles-frontend': 80794548883, 'cycles': 552508023199, 'instructions': 549323130845, 'LLC-stores': 1040330023}, 'blosc': {'L1-dcache-stores': 11491500475, 'stalled-cycles-frontend': 66680660866, 'cycles': 553165911211, 'instructions': 368651797697, 'LLC-stores': 5265764788}, 'sdag': {'L1-dcache-stores': 9529308778, 'stalled-cycles-frontend': 53154164859, 'cycles': 551922784101, 'instructions': 400858850963, 'LLC-stores': 643081132}}
-# isolated = {'pgbench': {'L1-dcache-stores': 6218209645, 'stalled-cycles-frontend': 249767325524, 'cycles': 515476510897, 'instructions': 220346776018, 'LLC-stores': 1643732758}, 'sdagp': {'L1-dcache-stores': 14443077114, 'stalled-cycles-frontend': 52705994893, 'cycles': 557848641485, 'instructions': 251077061304, 'LLC-stores': 5898851087}, 'wordpress': {'L1-dcache-stores': 8294422897, 'stalled-cycles-frontend': 104217733013, 'cycles': 556757158395, 'instructions': 430138653394, 'LLC-stores': 1462512124}, 'static': {'L1-dcache-stores': 17940983263, 'stalled-cycles-frontend': 77307005896, 'cycles': 556204932473, 'instructions': 453070152422, 'LLC-stores': 7371168968}, 'matrix': {'L1-dcache-stores': 22692159638, 'stalled-cycles-frontend': 201442224416, 'cycles': 556806776472, 'instructions': 730484037018, 'LLC-stores': 11494735965}, 'ffmpeg': {'L1-dcache-stores': 12837870021, 'stalled-cycles-frontend': 64616021277, 'cycles': 557943222948, 'instructions': 752338898712, 'LLC-stores': 1071843255}, 'blosc': {'L1-dcache-stores': 15577649672, 'stalled-cycles-frontend': 57633887125, 'cycles': 557647504163, 'instructions': 499061830387, 'LLC-stores': 6737576611}, 'sdag': {'L1-dcache-stores': 13099033270, 'stalled-cycles-frontend': 54697901318, 'cycles': 558527754551, 'instructions': 545150868350, 'LLC-stores': 611481823}}
+class OrderedDefaultDict(OrderedDict):
+  """ Ordered default dict. """
+  def __init__(self, factory, *args, **kwargs):
+    self.default_factory = factory
+    super(OrderedDefaultDict, self).__init__(*args, **kwargs)
+
+  def __missing__ (self, key):
+    self[key] = default = self.default_factory()
+    return default
+
 
 def ratio(sh, iso, param):
   sh_param = sh[param] / sh['cycles']
@@ -101,7 +107,7 @@ results = {
       (('static', 'static'), [0.6035574748561862, 0.6085196305043862]),
       (('static', 'wordpress'), [0.6795300714512448, 0.5609176751209078]),
       (('wordpress', 'wordpress'), [0.5975575068237051, 0.590820644167468])]),
-    'isolated_cnts':
+    'isolated_stats':
     # ./perforator.py -t "func=all_events,interval=900000,warmup=15" -b
     {'sdagp': {'cpu-clock': 899149, 'cycles': 2769271032062, 'stalled-cycles-backend': 1835715187128, 'stalled-cycles-frontend': 254297119578, 'L1-dcache-prefetches': 38741148856, 'dTLB-load-misses': 24611240820, 'branch-instructions': 283610238344, 'page-faults': 274, 'LLC-load-misses': 12797164696, 'context-switches': 69906, 'branch-load-misses': 3664676752, 'alignment-faults': 0, 'L1-dcache-load-misses': 55536350217, 'branch-loads': 283268643165, 'LLC-stores': 27747122349, 'iTLB-load-misses': 2402497, 'instructions': 1143886389899, 'emulation-faults': 0, 'minor-faults': 273, 'dTLB-loads': 486437360278, 'L1-dcache-prefetch-misses': 0, 'dummy': 0, 'cache-references': 410643928233, 'task-clock': 899146, 'L1-dcache-loads': 487251004990, 'L1-icache-loads': 411669056919, 'L1-icache-load-misses': 2738333499, 'L1-dcache-stores': 66908822690, 'cpu-migrations': 1, 'LLC-loads': 69934987259, 'branch-misses': 3674711534, 'L1-icache-prefetches': 29853001, 'major-faults': 0, 'iTLB-loads': 411158473884, 'cache-misses': 2731332372}, 'blosc': {'cpu-clock': 899057, 'cycles': 2770705227214, 'stalled-cycles-backend': 1203235831051, 'stalled-cycles-frontend': 284590377033, 'L1-dcache-prefetches': 42718280897, 'dTLB-load-misses': 29338685, 'branch-instructions': 441406574268, 'page-faults': 61, 'LLC-load-misses': 16138580024, 'context-switches': 67699, 'branch-load-misses': 12420055470, 'alignment-faults': 0, 'L1-dcache-load-misses': 43013090999, 'branch-loads': 440293069623, 'LLC-stores': 33584984234, 'iTLB-load-misses': 4599382, 'instructions': 2477599729770, 'emulation-faults': 0, 'minor-faults': 61, 'dTLB-loads': 912238501748, 'L1-dcache-prefetch-misses': 0, 'dummy': 0, 'cache-references': 814698017841, 'task-clock': 899050, 'L1-dcache-loads': 910207818269, 'L1-icache-loads': 814036675223, 'L1-icache-load-misses': 394879836, 'L1-dcache-stores': 77716918323, 'cpu-migrations': 2, 'LLC-loads': 78173397663, 'branch-misses': 12403459894, 'L1-icache-prefetches': 8195795, 'major-faults': 0, 'iTLB-loads': 814072170432, 'cache-misses': 394079072}, 'ffmpeg': {'cpu-clock': 899142, 'cycles': 2757636781715, 'stalled-cycles-backend': 971114222232, 'stalled-cycles-frontend': 323146299979, 'L1-dcache-prefetches': 43482803917, 'dTLB-load-misses': 29001381, 'branch-instructions': 216148490785, 'page-faults': 143, 'LLC-load-misses': 2870859587, 'context-switches': 65798, 'branch-load-misses': 13101732168, 'alignment-faults': 0, 'L1-dcache-load-misses': 62984307931, 'branch-loads': 216167993679, 'LLC-stores': 5356853974, 'iTLB-load-misses': 5053090, 'instructions': 3741420907229, 'emulation-faults': 0, 'minor-faults': 143, 'dTLB-loads': 1381263245410, 'L1-dcache-prefetch-misses': 0, 'dummy': 0, 'cache-references': 1023811632506, 'task-clock': 899140, 'L1-dcache-loads': 1384791406819, 'L1-icache-loads': 1030788191583, 'L1-icache-load-misses': 24312817516, 'L1-dcache-stores': 62804014072, 'cpu-migrations': 0, 'LLC-loads': 89406234413, 'branch-misses': 13094860762, 'L1-icache-prefetches': 2697279089, 'major-faults': 0, 'iTLB-loads': 1030454932489, 'cache-misses': 24287734385}, 'static': {'cpu-clock': 898975, 'cycles': 2765233533936, 'stalled-cycles-backend': 1294974903809, 'stalled-cycles-frontend': 380895176064, 'L1-dcache-prefetches': 96337265389, 'dTLB-load-misses': 246192291, 'branch-instructions': 225205852608, 'page-faults': 0, 'LLC-load-misses': 13453265902, 'context-switches': 68587, 'branch-load-misses': 3088659356, 'alignment-faults': 0, 'L1-dcache-load-misses': 46045644313, 'branch-loads': 225196990034, 'LLC-stores': 37661743553, 'iTLB-load-misses': 28555390, 'instructions': 2247614317353, 'emulation-faults': 0, 'minor-faults': 0, 'dTLB-loads': 1115577620314, 'L1-dcache-prefetch-misses': 0, 'dummy': 0, 'cache-references': 490884261896, 'task-clock': 898963, 'L1-dcache-loads': 1117962955598, 'L1-icache-loads': 490784280791, 'L1-icache-load-misses': 5706997951, 'L1-dcache-stores': 89270266076, 'cpu-migrations': 2, 'LLC-loads': 96754357044, 'branch-misses': 3093177403, 'L1-icache-prefetches': 177130118, 'major-faults': 0, 'iTLB-loads': 490747586720, 'cache-misses': 5688189002}, 'wordpress': {'cpu-clock': 897622, 'cycles': 2759073186251, 'stalled-cycles-backend': 690421560572, 'stalled-cycles-frontend': 551197002391, 'L1-dcache-prefetches': 50014560436, 'dTLB-load-misses': 470823204, 'branch-instructions': 427692525185, 'page-faults': 0, 'LLC-load-misses': 3605261984, 'context-switches': 118785, 'branch-load-misses': 24530556749, 'alignment-faults':0, 'L1-dcache-load-misses': 40911737726, 'branch-loads': 427085893076, 'LLC-stores': 7685774240, 'iTLB-load-misses': 162451693, 'instructions': 2158268755085, 'emulation-faults': 0, 'minor-faults': 0, 'dTLB-loads': 1217050918460, 'L1-dcache-prefetch-misses': 0, 'dummy': 0, 'cache-references': 1240126225846, 'task-clock': 897619, 'L1-dcache-loads': 1216273543967, 'L1-icache-loads': 1240650544228, 'L1-icache-load-misses': 27563517581, 'L1-dcache-stores': 42997210535, 'cpu-migrations': 0, 'LLC-loads': 78504648664, 'branch-misses': 24517322418, 'L1-icache-prefetches': 51433214, 'major-faults': 0, 'iTLB-loads': 1241003901861, 'cache-misses': 27536602675}, 'matrix': {'cpu-clock': 899036, 'cycles': 2765306965058, 'stalled-cycles-backend': 68459542971, 'stalled-cycles-frontend': 964561518809, 'L1-dcache-prefetches': 110062452114, 'dTLB-load-misses': 14846624, 'branch-instructions': 463441681833, 'page-faults': 85, 'LLC-load-misses': 2857598992, 'context-switches': 65156, 'branch-load-misses': 249805333, 'alignment-faults': 0, 'L1-dcache-load-misses': 9757339630, 'branch-loads': 463232977822, 'LLC-stores': 58242924301, 'iTLB-load-misses': 1260775, 'instructions': 3702554265256, 'emulation-faults': 0,'minor-faults': 85, 'dTLB-loads': 1424143743592, 'L1-dcache-prefetch-misses': 0, 'dummy': 0, 'cache-references': 957437892971, 'task-clock': 899030, 'L1-dcache-loads': 1423682647002, 'L1-icache-loads': 957464282788, 'L1-icache-load-misses': 133716322, 'L1-dcache-stores': 114959360213, 'cpu-migrations': 2, 'LLC-loads': 115122619237, 'branch-misses': 249989560, 'L1-icache-prefetches': 261345, 'major-faults': 0, 'iTLB-loads': 957346014488, 'cache-misses': 133301515}, 'sdag': {'cpu-clock': 899183, 'cycles': 2776336387761, 'stalled-cycles-backend': 1004912857772, 'stalled-cycles-frontend': 230436289133, 'L1-dcache-prefetches': 86268504151, 'dTLB-load-misses': 117703509, 'branch-instructions': 611459601526, 'page-faults': 110, 'LLC-load-misses': 787395116, 'context-switches': 65391, 'branch-load-misses': 13025296518, 'alignment-faults': 0, 'L1-dcache-load-misses': 58904567815, 'branch-loads': 611465765221, 'LLC-stores': 3140770905, 'iTLB-load-misses': 3762514, 'instructions': 2758172786455, 'emulation-faults': 0, 'minor-faults': 110, 'dTLB-loads': 1299410428973, 'L1-dcache-prefetch-misses': 0, 'dummy': 0, 'cache-references': 1000853712400, 'task-clock': 899181, 'L1-dcache-loads': 1304167765653, 'L1-icache-loads': 1000174042423, 'L1-icache-load-misses': 8477022554, 'L1-dcache-stores': 65975213205, 'cpu-migrations': 0, 'LLC-loads': 75696023982, 'branch-misses': 13002383995, 'L1-icache-prefetches': 17841869, 'major-faults': 0, 'iTLB-loads': 1001021511302, 'cache-misses': 8481466422}, 'pgbench': {'cpu-clock': 872559, 'cycles': 2222713292020, 'stalled-cycles-backend': 276470015346, 'stalled-cycles-frontend': 1090728319832, 'L1-dcache-prefetches': 24554959043, 'dTLB-load-misses': 2110885875, 'branch-instructions': 190912012087, 'page-faults': 25, 'LLC-load-misses': 5436584103, 'context-switches': 5278924, 'branch-load-misses': 16718543288, 'alignment-faults': 0, 'L1-dcache-load-misses': 23872995271, 'branch-loads': 190877065711, 'LLC-stores': 10987791687, 'iTLB-load-misses': 2152068318, 'instructions': 925972757585, 'emulation-faults': 0, 'minor-faults': 25, 'dTLB-loads': 543309393550, 'L1-dcache-prefetch-misses': 0, 'dummy': 0, 'cache-references': 839128963692, 'task-clock': 872598, 'L1-dcache-loads': 542480765530, 'L1-icache-loads': 840275039855, 'L1-icache-load-misses': 51491000326, 'L1-dcache-stores': 25434785636, 'cpu-migrations': 2, 'LLC-loads': 82171334264, 'branch-misses': 16711784728, 'L1-icache-prefetches': 94799408, 'major-faults': 0, 'iTLB-loads': 836597669547, 'cache-misses': 51567238607}},
   },
@@ -147,10 +153,10 @@ results = {
 
 
 
-def interference(isolated, joint, isolated_cnts=None):
+def analyze(isolated, joint, stats=None):
   bmarks = sorted(isolated.keys())
-  avg_sensitivity = defaultdict(int)
-  avg_brutality = defaultdict(int)
+  avg_sensitivity = OrderedDefaultDict(int)
+  avg_brutality = OrderedDefaultDict(int)
 
   print("          ", end='')
   [prints("{bmark:>10}", end='') for bmark in bmarks]
@@ -186,21 +192,23 @@ def interference(isolated, joint, isolated_cnts=None):
     brut = avg_brutality[bmark]
     prints("{bmark:<11} {degr:>8.2f} {brut:>10.2f}")
 
-  if not isolated_cnts:
+  if not stats:
     return
 
   correlation = []
-  for event in isolated_cnts['blosc']:
+  for event in stats['blosc']:
     X, Y = [], []
     for bmark in bmarks:
       sensitivity = avg_sensitivity[bmark]
-      cnt = isolated_cnts[bmark][event]
+      count = stats[bmark][event]
       X.append(sensitivity)
-      Y.append(cnt)
+      Y.append(count)
     correlation.append((event, pearsonr(X, Y)))
   correlation.sort(key=lambda v: -abs(v[1][0]))
-  for event, corr in correlation:
-    print(event, corr)
+  for event, (corr, p) in correlation:
+    if p > 0.05:
+      continue
+    prints("{event:<25} {corr:>8.4f} {p:>8.4f}")
   # for k,v in isolated_cnts.items():
   #   print(k, v, end='\n\n')
   return  # TODO
@@ -215,8 +223,8 @@ def interference(isolated, joint, isolated_cnts=None):
 
 
 data = results['fx_normale']
-interference(isolated=data['isolated'],joint=data['joint'], isolated_cnts=data['isolated_cnts'])
+analyze(isolated=data['isolated'],joint=data['joint'], stats=data['isolated_stats'])
 print("=========")
 # data = results['fx_qnc']
 # interference(isolated=data['isolated'],joint=data['joint'])
-# interference(isolated=results['fx_normale']['isolated'], joint=results['fx_far_and_dirty'])
+# interference(joint=results['fx_far_and_dirty'], isolated=results['fx_normale']['isolated'], isolated_cnts=data['isolated_cnts'])
