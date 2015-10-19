@@ -6,7 +6,7 @@ from useful.mystruct import DefaultStruct
 from collections import OrderedDict
 from scipy.stats.stats import pearsonr
 import numpy as np
-from itertools import combinations
+from itertools import combinations, permutations
 
 ##############
 # AMD Q'n'C  #
@@ -321,11 +321,13 @@ def main():
   # for bmark in stats:
   #   print("{:.3f}".format(brutality_near(bmark)))
   htmap = {0: [5], 1: [3], 2: [4], 3: [1], 4: [2], 5: [0], 6: [7], 7: [6]}
-  alloc = [("blosc",0), ("blosc",5)]
+  # alloc = [("blosc",0), ("blosc",5)]
   # r = estimate(alloc, htmap=htmap, sens_near=sens_near, sens_far=sens_far, brut_near=brut_near, brut_far=brut_far)
-  tasks = [task for task, cpu in alloc]
+  # tasks = [task for task, cpu in alloc]
   all_cpus = [0,1,2,3,4,5,6,7]
-  for cpus in combinations(all_cpus, len(tasks)):
+  tasks = ['sdagp', 'ffmpeg', 'pgbench', 'wordpress', 'matrix', 'matrix', 'blosc', 'wordpress']
+  for cpus in permutations(all_cpus):
+    print(cpus, tasks)
     r = estimate(zip(tasks, cpus), htmap=htmap, sens_near=sens_near, sens_far=sens_far, brut_near=brut_near, brut_far=brut_far)
     print(r, cpus)
 
