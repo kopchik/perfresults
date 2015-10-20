@@ -291,7 +291,7 @@ def estimate(alloc, htmap, sens_near, sens_far, brut_near, brut_far):
   return degradation
 
 
-def main():
+def calc_regr():
   data = results['fx_normale']
   stats = data['isolated_stats']
 
@@ -313,7 +313,11 @@ def main():
   brut_far = predict(stats=stats,
                      correlation=distant.brutality.correlation,
                      regression=distant.brutality.regression)
+  return sens_near, sens_far, brut_near, brut_far
 
+
+def main():
+  sens_near, sens_far, brut_near, brut_far = calc_regr()
   # brutality_far  = predict(stats=stats,
   #                          correlation=distant.correlation,
   #                          regression=distant.regression)
