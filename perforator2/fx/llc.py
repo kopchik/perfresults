@@ -286,8 +286,7 @@ def estimate(alloc, htmap, sens_near, sens_far, brut_near, brut_far):
       brut, sens = brut_near, sens_near
     else:
       brut, sens = brut_far, sens_far
-
-    degradation += sens(a) + sens(b) + brut(a) + brut(b)
+    degradation += sens(a) + sens(b) #+ brut(a) + brut(b)
   return degradation
 
 
@@ -328,7 +327,7 @@ def main():
   # alloc = [("blosc",0), ("blosc",5)]
   # r = estimate(alloc, htmap=htmap, sens_near=sens_near, sens_far=sens_far, brut_near=brut_near, brut_far=brut_far)
   # tasks = [task for task, cpu in alloc]
-  all_cpus = [0,1,2,3,4,5,6,7]
+  all_cpus = [0, 1, 2, 3, 4, 5, 6, 7]
   tasks = ['sdagp', 'ffmpeg', 'pgbench', 'wordpress', 'matrix', 'matrix', 'blosc', 'wordpress']
   for cpus in permutations(all_cpus):
     print(cpus, tasks)
